@@ -1,337 +1,318 @@
 import os
-import base64
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
-# ======================================
-# Ícone embutido
-# ======================================
 
-ICON_BASE64 = """
-iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAAAAYLlVAAAAl0lEQVR4Ae3WMQ6AIAxE0Xv/p9sE
-xCBrum1BgFiSVqSogn+CA0nVddOcxXS6AMDttuPAoBs+K6TfGsDz3jACzmwVsQtAT5ArhcXd1LSe
-BF3nf6/DrATguPmyAnbcDFSyCYwiVQi+GqOR/mdrIW6DCQE4kMAAETaGEKMFAAAi6iKCCGGAACoo
-IoIYYAAKiiighhgAAqKKKCGGAAAqKCKCGGAACooIoIYYAAKiiighhgAAqKKKCGGAAAqKCKCGGAAAq
-qA9H0AB2T9nS3AAAAABJRU5ErkJggg==
-"""
-
-def aplicar_icone(janela):
-    try:
-        icon_data = base64.b64decode(ICON_BASE64)
-        icon = tk.PhotoImage(data=icon_data)
-        janela.iconphoto(True, icon)
-    except:
-        pass
+APP_TITLE = "TreeBuilder v1.2"
+APP_DESC = "Gerador de Estrutura de Pastas e Arquivos - Ferramenta para criar rapidamente estruturas de projetos a partir de árvores de diretórios"
 
 
-# ======================================
-# Interpretar estrutura
-# ======================================
+class TreeBuilderApp:
 
-def interpretar_arvore(texto):
+    def __init__(self, root):
 
-    linhas = texto.splitlines()
-    estrutura = []
+        self.root = root
+        root.title(APP_TITLE)
+        root.geometry("600x520")
+        root.resizable(False, False)
 
-    for linha in linhas:
+        # ----------------------------
+        # Título
+        # ----------------------------
 
-        linha = linha.rstrip()
+        titulo = tk.Label(
+            root,
+            text=APP_TITLE,
+            font=("Arial", 16, "bold")
+        )
+        titulo.pack(pady=(10, 0))
 
-        if not linha.strip():
-            continue
+        descricao = tk.Label(
+            root,
+            text=APP_DESC,
+            font=("Arial", 9)
+        )
+        descricao.pack(pady=(0, 10))
 
-        nivel = linha.count("│") + linha.count("    ")
+        # ----------------------------
+        # Passo 1
+        # ----------------------------
 
-        nome = (
-            linha.replace("├──", "")
-            .replace("└──", "")
-            .replace("│", "")
-            .strip()
+        passo1 = tk.Frame(root)
+        passo1.pack(fill="x", padx=10)
+
+        label1 = tk.Label(
+            passo1,
+            text="1️⃣ Cole sua estrutura no campo abaixo ou carregue um arquivo .txt"
+        )
+        label1.pack(side="left")
+
+        botao_carregar = tk.Button(
+            passo1,
+            text="Carregar .txt",
+            command=self.carregar_txt
+        )
+        botao_carregar.pack(side="right")
+
+        # ----------------------------
+        # Passo 2
+        # ----------------------------
+
+        label2 = tk.Label(
+            root,
+            text="2️⃣ Escolha a pasta onde deseja criar a estrutura"
+        )
+        label2.pack(anchor="w", padx=10, pady=(5, 0))
+
+        self.pasta_destino = tk.Entry(root)
+        self.pasta_destino.pack(fill="x", padx=10, pady=5)
+
+        botao_pasta = tk.Button(
+            root,
+            text="Selecionar Pasta",
+            command=self.selecionar_pasta
+        )
+        botao_pasta.pack(pady=(0, 10))
+
+        # ----------------------------
+        # Editor
+        # ----------------------------
+
+        label_editor = tk.Label(
+            root,
+            text="Cole aqui a estrutura a ser criada:"
+        )
+        label_editor.pack(anchor="w", padx=10)
+
+        frame_editor = tk.Frame(root)
+        frame_editor.pack(fill="both", expand=True, padx=10)
+
+        self.editor = tk.Text(frame_editor, height=14)
+        self.editor.pack(side="left", fill="both", expand=True)
+
+        scrollbar = tk.Scrollbar(frame_editor, command=self.editor.yview)
+        scrollbar.pack(side="right", fill="y")
+
+        self.editor.config(yscrollcommand=scrollbar.set)
+
+        # ----------------------------
+        # Botões
+        # ----------------------------
+
+        frame_botoes = tk.Frame(root)
+        frame_botoes.pack(pady=10)
+
+        botao_criar = tk.Button(
+            frame_botoes,
+            text="Criar Estrutura",
+            width=20,
+            command=self.criar_estrutura
+        )
+        botao_criar.grid(row=0, column=0, padx=5)
+
+        botao_exemplo = tk.Button(
+            frame_botoes,
+            text="Exemplo de Estrutura",
+            width=20,
+            command=self.exemplo
+        )
+        botao_exemplo.grid(row=0, column=1, padx=5)
+
+        botao_limpar = tk.Button(
+            frame_botoes,
+            text="Limpar Editor",
+            width=20,
+            command=self.limpar_editor
+        )
+        botao_limpar.grid(row=0, column=2, padx=5)
+
+        # ----------------------------
+        # Rodapé
+        # ----------------------------
+
+        rodape = tk.Label(
+            root,
+            text="Projeto open source",
+            font=("Arial", 8)
+        )
+        rodape.pack(pady=(0, 10))
+
+        # ----------------------------
+        # Menu
+        # ----------------------------
+
+        menu = tk.Menu(root)
+        root.config(menu=menu)
+
+        menu_arquivo = tk.Menu(menu, tearoff=0)
+        menu.add_cascade(label="Arquivo", menu=menu_arquivo)
+
+        menu_arquivo.add_command(label="Carregar .txt", command=self.carregar_txt)
+        menu_arquivo.add_command(label="Limpar Editor", command=self.limpar_editor)
+        menu_arquivo.add_separator()
+        menu_arquivo.add_command(label="Sair", command=root.quit)
+
+        menu_ajuda = tk.Menu(menu, tearoff=0)
+        menu.add_cascade(label="Ajuda", menu=menu_ajuda)
+
+        menu_ajuda.add_command(label="Sobre", command=self.sobre)
+
+    # -----------------------------------------------------
+
+    def selecionar_pasta(self):
+
+        pasta = filedialog.askdirectory()
+
+        if pasta:
+            self.pasta_destino.delete(0, tk.END)
+            self.pasta_destino.insert(0, pasta)
+
+    # -----------------------------------------------------
+
+    def carregar_txt(self):
+
+        arquivo = filedialog.askopenfilename(
+            filetypes=[("Arquivos de texto", "*.txt")]
         )
 
-        estrutura.append((nivel, nome))
+        if not arquivo:
+            return
 
-    return estrutura
+        with open(arquivo, "r", encoding="utf-8") as f:
+            conteudo = f.read()
 
+        self.editor.delete("1.0", tk.END)
+        self.editor.insert(tk.END, conteudo)
 
-# ======================================
-# Criar estrutura
-# ======================================
+    # -----------------------------------------------------
 
-def criar_estrutura():
+    def limpar_editor(self):
 
-    texto = area_texto.get("1.0", tk.END)
+        self.editor.delete("1.0", tk.END)
 
-    if not texto.strip():
-        messagebox.showwarning("Aviso", "Cole ou carregue uma estrutura primeiro.")
-        return
+    # -----------------------------------------------------
 
-    pasta_destino = filedialog.askdirectory(title="Escolha onde criar o projeto")
+    def exemplo(self):
 
-    if not pasta_destino:
-        return
-
-    estrutura = interpretar_arvore(texto)
-
-    raiz = estrutura[0][1]
-    caminho_raiz = os.path.join(pasta_destino, raiz)
-
-    try:
-        os.makedirs(caminho_raiz, exist_ok=True)
-    except Exception as e:
-        messagebox.showerror("Erro", str(e))
-        return
-
-    pilha = [(0, caminho_raiz)]
-
-    for nivel, nome in estrutura[1:]:
-
-        while pilha and pilha[-1][0] >= nivel:
-            pilha.pop()
-
-        caminho_pai = pilha[-1][1]
-        caminho_atual = os.path.join(caminho_pai, nome)
-
-        if "." in nome:
-            open(caminho_atual, "w").close()
-        else:
-            os.makedirs(caminho_atual, exist_ok=True)
-
-        pilha.append((nivel, caminho_atual))
-
-    messagebox.showinfo("Sucesso", f"Estrutura criada em:\n{caminho_raiz}")
-
-
-# ======================================
-# Utilitários
-# ======================================
-
-def carregar_arquivo():
-
-    caminho = filedialog.askopenfilename(
-        title="Selecionar arquivo",
-        filetypes=[("Arquivos de texto", "*.txt")]
-    )
-
-    if not caminho:
-        return
-
-    with open(caminho, "r", encoding="utf-8") as f:
-        conteudo = f.read()
-
-    area_texto.delete("1.0", tk.END)
-    area_texto.insert(tk.END, conteudo)
-
-
-def exemplo_estrutura():
-
-    exemplo = """
-meu_projeto/
-├── app/
-│   ├── main.py
-│   ├── auth.py
+        exemplo = """ProjetoExemplo/
+├── main.py
+├── README.md
+├── requirements.txt
+├── src/
+│   ├── app.py
 │   └── utils.py
-├── data/
-├── output/
-├── logs/
-└── README.md
+├── tests/
+│   └── test_app.py
+└── docs/
+    └── manual.md
 """
 
-    area_texto.delete("1.0", tk.END)
-    area_texto.insert(tk.END, exemplo.strip())
+        self.editor.delete("1.0", tk.END)
+        self.editor.insert(tk.END, exemplo)
 
+    # -----------------------------------------------------
 
-def limpar_editor():
-    area_texto.delete("1.0", tk.END)
+    def sobre(self):
 
+        texto = """
+TreeBuilder v1.2
 
-def sobre():
-
-    messagebox.showinfo(
-        "Sobre o TreeBuilder",
-        """
-TreeBuilder v1.1
+Ferramenta open source para gerar rapidamente
+estruturas de pastas e arquivos.
 
 Autor:
 Moisés Felipe Costa Carvalho
 
-Email:
-moisescarvalho33@gmail.com
-
 GitHub:
 https://github.com/mDEV33br
 
-Ferramenta open source para geração
-de estruturas de projetos.
+Contato:
+moisescarvalho33@gmail.com
 """
-    )
+
+        messagebox.showinfo("Sobre", texto)
+
+    # -----------------------------------------------------
+
+    def criar_estrutura(self):
+
+        destino = self.pasta_destino.get().strip()
+
+        if not destino:
+            messagebox.showerror("Erro", "Selecione uma pasta destino.")
+            return
+
+        linhas = self.editor.get("1.0", tk.END).splitlines()
+
+        pilha = []
+
+        for linha in linhas:
+
+            linha = linha.rstrip()
+
+            if not linha:
+                continue
+
+            # Ignorar comentários
+            if linha.strip().startswith("#"):
+                continue
+
+            # Ignorar textos explicativos
+            if linha.strip().startswith("("):
+                continue
+
+            nivel = linha.count("│")
+
+            nome = linha.replace("│", "")
+            nome = nome.replace("├──", "")
+            nome = nome.replace("└──", "")
+            nome = nome.strip()
+
+            if not nome:
+                continue
+
+            if nivel == 0:
+
+                caminho = os.path.join(destino, nome)
+
+                if nome.endswith("/"):
+                    os.makedirs(caminho, exist_ok=True)
+                else:
+                    open(caminho, "a").close()
+
+                pilha = [(nivel, caminho)]
+
+                continue
+
+            while pilha and pilha[-1][0] >= nivel:
+                pilha.pop()
+
+            if not pilha:
+                continue
+
+            caminho_pai = pilha[-1][1]
+
+            caminho = os.path.join(caminho_pai, nome)
+
+            if nome.endswith("/"):
+
+                os.makedirs(caminho, exist_ok=True)
+
+                pilha.append((nivel, caminho))
+
+            else:
+
+                open(caminho, "a").close()
+
+        messagebox.showinfo("Sucesso", "Estrutura criada com sucesso!")
 
 
-# ======================================
-# Interface
-# ======================================
+# ---------------------------------------------------------
 
-janela = tk.Tk()
-janela.title("TreeBuilder v1.1")
-janela.geometry("700x500")
-janela.resizable(False, False)
+if __name__ == "__main__":
 
-aplicar_icone(janela)
+    root = tk.Tk()
 
+    app = TreeBuilderApp(root)
 
-# ======================================
-# Menu
-# ======================================
-
-menu_bar = tk.Menu(janela)
-
-menu_arquivo = tk.Menu(menu_bar, tearoff=0)
-menu_arquivo.add_command(label="Sair", command=janela.quit)
-menu_bar.add_cascade(label="Arquivo", menu=menu_arquivo)
-
-menu_ajuda = tk.Menu(menu_bar, tearoff=0)
-menu_ajuda.add_command(label="Sobre", command=sobre)
-menu_bar.add_cascade(label="Ajuda", menu=menu_ajuda)
-
-janela.config(menu=menu_bar)
-
-
-# ======================================
-# Título
-# ======================================
-
-titulo = tk.Label(
-    janela,
-    text="TreeBuilder v1.1",
-    font=("Arial", 18, "bold")
-)
-
-titulo.pack(pady=(8,2))
-
-
-descricao = tk.Label(
-    janela,
-    text="Gerador de Estrutura de Pastas e Arquivos\nFerramenta para criar rapidamente estruturas de projetos a partir de árvores de diretórios",
-    font=("Arial", 9),
-    justify="center"
-)
-
-descricao.pack(pady=(0,6))
-
-
-# ======================================
-# PASSO 1
-# ======================================
-
-frame_passo1 = tk.Frame(janela)
-frame_passo1.pack(pady=2)
-
-label_passo1 = tk.Label(
-    frame_passo1,
-    text="PASSO 1: Cole sua estrutura ou carregue um arquivo *.txt",
-    font=("Arial", 9)
-)
-
-label_passo1.grid(row=0, column=0, padx=5)
-
-botao_carregar = tk.Button(
-    frame_passo1,
-    text="Carregar arquivo .txt",
-    command=carregar_arquivo
-)
-
-botao_carregar.grid(row=0, column=1, padx=5)
-
-
-# ======================================
-# PASSO 2
-# ======================================
-
-label_passo2 = tk.Label(
-    janela,
-    text="PASSO 2: Clique em 'Criar Estrutura' e escolha a pasta onde o projeto será criado.",
-    font=("Arial", 9)
-)
-
-label_passo2.pack(pady=2)
-
-
-# ======================================
-# Editor com Scroll
-# ======================================
-
-label_editor = tk.Label(
-    janela,
-    text="Cole aqui a estrutura a ser criada:",
-    font=("Arial", 9, "bold")
-)
-
-label_editor.pack()
-
-frame_editor = tk.Frame(janela)
-frame_editor.pack(padx=10, pady=6)
-
-scrollbar = tk.Scrollbar(frame_editor)
-
-area_texto = tk.Text(
-    frame_editor,
-    height=14,
-    width=80,
-    yscrollcommand=scrollbar.set
-)
-
-scrollbar.config(command=area_texto.yview)
-
-scrollbar.pack(side="right", fill="y")
-area_texto.pack(side="left", fill="both")
-
-
-# ======================================
-# Botões
-# ======================================
-
-frame_botoes = tk.Frame(janela)
-frame_botoes.pack(pady=3)
-
-botao_criar = tk.Button(
-    frame_botoes,
-    text="Criar Estrutura",
-    width=18,
-    command=criar_estrutura
-)
-
-botao_criar.grid(row=0, column=0, padx=5)
-
-botao_exemplo = tk.Button(
-    frame_botoes,
-    text="Exemplo de Estrutura",
-    width=18,
-    command=exemplo_estrutura
-)
-
-botao_exemplo.grid(row=0, column=1, padx=5)
-
-botao_limpar = tk.Button(
-    frame_botoes,
-    text="Limpar Editor",
-    width=18,
-    command=limpar_editor
-)
-
-botao_limpar.grid(row=0, column=2, padx=5)
-
-
-# ======================================
-# Rodapé
-# ======================================
-
-rodape = tk.Label(
-    janela,
-    text="Projeto open source",
-    font=("Arial", 8)
-)
-
-rodape.pack(pady=3)
-
-
-janela.mainloop()
+    root.mainloop()
